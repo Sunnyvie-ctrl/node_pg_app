@@ -30,3 +30,23 @@ jobs:
             - name: Push Docker image
               run: |
                 docker push ghcr.io/${{ env.REPO_LC }}/node-app:latest
+        
+            - name: Deploy image to Railway staging
+              run: |
+                SHA_TAG=$(echo "${{ needs.docker.outputs.image }}" \
+                    | tr ',' '\n' \
+                    | grep 'sha-' \
+                    | head -1 \
+                    | xargs)
+
+                echo "Deploying image tag: $SHA_TAG"
+
+                curl -s -X POST \
+                    -H "Authorization: Bearer ${{ secrets.RAILWAY_TOKEN }}"
+                    -H "Content-type: application/json" \
+                    -d "{
+                    \"query\": \"mutation { serviceInstanceRedeploy(serviceId: \\\"${{ secrets.RAILWAY_SERVICE_ID }}\\\", environmentId: \\\"${{ secrets.RAILWAY_ENVIRONMENT_ID }}\\\") }\"
+                    }" \
+                    https://backboard.railway.app/graphql/v2
+
+                echo "Staging deployment triggered"
